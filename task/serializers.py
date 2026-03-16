@@ -18,6 +18,7 @@ class TaskSerializer(serializers.ModelSerializer):
     assignee_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     reviewer = UserSummarySerializer(read_only=True)
     reviewer_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    due_date = serializers.DateTimeField(format="%Y-%m-%d", input_formats=["%Y-%m-%d", "iso-8601"])
     comments_count = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -38,6 +39,12 @@ class TaskSerializer(serializers.ModelSerializer):
         ]
 
     def get_assignee(self, obj):
+        request = self.context.get("request")
+        if request and request.user and request.user.is_authenticated:
+            user = obj.assignies.filter(id=request.user.id).first()
+            if user:
+                return UserSummarySerializer(user).data
+
         user = obj.assignies.order_by("id").first()
         if not user:
             return None
