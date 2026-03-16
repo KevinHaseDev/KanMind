@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from board.models import Board
 from .models import Comment, Task
 from .serializers import CommentSerializer, TaskSerializer
 
@@ -45,6 +46,13 @@ class TaskReviewingListView(generics.ListAPIView):
 class TaskCreateView(generics.CreateAPIView):
 	serializer_class = TaskSerializer
 	permission_classes = [permissions.IsAuthenticated]
+
+	def create(self, request, *args, **kwargs):
+		board_id = request.data.get("board")
+		if board_id is not None and not Board.objects.filter(id=board_id).exists():
+			return Response({"detail": "Board not found."}, status=status.HTTP_404_NOT_FOUND)
+
+		return super().create(request, *args, **kwargs)
 
 	def perform_create(self, serializer):
 		board = serializer.validated_data.get("board")
