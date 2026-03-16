@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 
 from board.models import Board
 from .models import Comment, Task
-from .serializers import CommentSerializer, TaskSerializer, TaskUpdateResponseSerializer
+from .serializers import CommentListSerializer, CommentSerializer, TaskSerializer, TaskUpdateResponseSerializer
 
 
 def user_can_access_board(user, board):
@@ -125,7 +125,7 @@ class TaskCommentsListCreateView(APIView):
 
 		self._check_board_access(request.user, task)
 		comments = Comment.objects.filter(task=task).select_related("author").order_by("created_at")
-		return Response(CommentSerializer(comments, many=True).data, status=status.HTTP_200_OK)
+		return Response(CommentListSerializer(comments, many=True).data, status=status.HTTP_200_OK)
 
 	def post(self, request, task_id):
 		task = self.get_task(task_id)
@@ -136,7 +136,7 @@ class TaskCommentsListCreateView(APIView):
 		serializer = CommentSerializer(data=request.data)
 		serializer.is_valid(raise_exception=True)
 		comment = serializer.save(task=task, author=request.user)
-		return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+		return Response(CommentListSerializer(comment).data, status=status.HTTP_201_CREATED)
 
 
 class TaskCommentDeleteView(APIView):
@@ -147,10 +147,8 @@ class TaskCommentDeleteView(APIView):
 		if comment is None:
 			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-		board = comment.task.board
-		is_board_owner = board and board.owner_id == request.user.id
-		if comment.author_id != request.user.id and not is_board_owner:
-			raise PermissionDenied("Only the comment author or board owner can delete this comment.")
+		if comment.author_id != request.user.id:
+			raise PermissionDenied("Only the comment author can delete this comment.")
 
 		comment.delete()
 		return Response(status=status.HTTP_204_NO_CONTENT)

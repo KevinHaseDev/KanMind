@@ -141,6 +141,17 @@ class CommentSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "author", "created_at"]
 
 
+class CommentListSerializer(serializers.ModelSerializer):
+    author = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Comment
+        fields = ["id", "created_at", "author", "content"]
+
+    def get_author(self, obj):
+        return obj.author.fullname
+
+
 class TaskUpdateResponseSerializer(serializers.ModelSerializer):
     assignee = serializers.SerializerMethodField(read_only=True)
     reviewer = UserSummarySerializer(read_only=True)
