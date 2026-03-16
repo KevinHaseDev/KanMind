@@ -5,6 +5,7 @@ from django.db import models
 
 class Task(models.Model):
     board = models.ForeignKey('board.Board', related_name='tasks', on_delete=models.CASCADE, null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='created_tasks', on_delete=models.SET_NULL, null=True, blank=True)
     title = models.CharField(max_length=255)
     description = models.TextField()
     status = models.CharField(max_length=50)

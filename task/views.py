@@ -58,7 +58,7 @@ class TaskCreateView(generics.CreateAPIView):
 		board = serializer.validated_data.get("board")
 		if board and not user_can_access_board(self.request.user, board):
 			raise PermissionDenied("You must be a board owner or member to create tasks for this board.")
-		serializer.save()
+		serializer.save(created_by=self.request.user)
 
 
 class TaskDetailView(APIView):
@@ -99,7 +99,10 @@ class TaskDetailView(APIView):
 		if task is None:
 			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-		self._check_board_access(request.user, task)
+		board_owner_id = task.board.owner_id if task.board else None
+		if request.user.id not in {task.created_by_id, board_owner_id}:
+			raise PermissionDenied("Only the task creator or board owner can delete this task.")
+
 		task.delete()
 		return Response(status=status.HTTP_204_NO_CONTENT)
 
