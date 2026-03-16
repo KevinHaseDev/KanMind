@@ -75,7 +75,7 @@ class BoardTaskSerializer(serializers.ModelSerializer):
         return obj.due_date.date().isoformat()
 
     def get_comments_count(self, obj):
-        return 0
+        return obj.comments.count()
 
 
 class BoardDetailSerializer(serializers.ModelSerializer):

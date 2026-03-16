@@ -11,4 +11,11 @@ class Task(models.Model):
     priority = models.CharField(max_length=50)
     due_date = models.DateTimeField()
     assignies = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='tasks')
-    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='reviewed_tasks', on_delete=models.CASCADE)
+    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='reviewed_tasks', on_delete=models.CASCADE, null=True, blank=True)
+
+
+class Comment(models.Model):
+    task = models.ForeignKey(Task, related_name='comments', on_delete=models.CASCADE)
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='task_comments', on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
