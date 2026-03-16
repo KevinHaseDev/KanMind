@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 
 from board.models import Board
 from .models import Comment, Task
-from .serializers import CommentSerializer, TaskSerializer
+from .serializers import CommentSerializer, TaskSerializer, TaskUpdateResponseSerializer
 
 
 def user_can_access_board(user, board):
@@ -79,6 +79,9 @@ class TaskDetailView(APIView):
 		if task is None:
 			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
+		if "board" in request.data:
+			return Response({"board": ["Changing the board of a task is not allowed."]}, status=status.HTTP_400_BAD_REQUEST)
+
 		self._check_board_access(request.user, task)
 		serializer = TaskSerializer(task, data=request.data, partial=True)
 		serializer.is_valid(raise_exception=True)
@@ -89,7 +92,7 @@ class TaskDetailView(APIView):
 			.annotate(comments_count=Count("comments", distinct=True))
 			.get(id=updated_task.id)
 		)
-		return Response(TaskSerializer(updated_task).data, status=status.HTTP_200_OK)
+		return Response(TaskUpdateResponseSerializer(updated_task).data, status=status.HTTP_200_OK)
 
 	def delete(self, request, task_id):
 		task = self.get_object(task_id)

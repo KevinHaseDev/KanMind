@@ -139,3 +139,28 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = ["id", "content", "author", "created_at"]
         read_only_fields = ["id", "author", "created_at"]
+
+
+class TaskUpdateResponseSerializer(serializers.ModelSerializer):
+    assignee = serializers.SerializerMethodField(read_only=True)
+    reviewer = UserSummarySerializer(read_only=True)
+    due_date = serializers.DateTimeField(format="%Y-%m-%d")
+
+    class Meta:
+        model = Task
+        fields = [
+            "id",
+            "title",
+            "description",
+            "status",
+            "priority",
+            "assignee",
+            "reviewer",
+            "due_date",
+        ]
+
+    def get_assignee(self, obj):
+        user = obj.assignies.order_by("id").first()
+        if not user:
+            return None
+        return UserSummarySerializer(user).data
