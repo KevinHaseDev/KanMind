@@ -1,8 +1,8 @@
 from django.contrib.auth import get_user_model  # Importiert Hilfsfunktion zum Ermitteln des aktiven User-Modells.
 from rest_framework import serializers  # Importiert Serializer-Klassen von DRF.
 
-from .models import Board  # Importiert das Board-Modell fuer Board-Serializer.
-from task.models import Task  # Importiert das Task-Modell fuer Board-Detailantworten.
+from ..models import Board  # Importiert das Board-Modell fuer Board-Serializer.
+from task_app.models import Task  # Importiert das Task-Modell fuer Board-Detailantworten.
 
 
 User = get_user_model()  # Ermittelt das konfigurierte Custom-User-Modell.

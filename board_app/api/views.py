@@ -5,7 +5,7 @@ from rest_framework import generics, permissions, status  # Importiert DRF-Gener
 from rest_framework.response import Response  # Importiert den DRF-Response-Wrapper.
 from rest_framework.views import APIView  # Importiert die Basisklasse fuer benutzerdefinierte API-Endpunkte.
 
-from .models import Board  # Importiert das Board-Modell fuer Board-Endpunkte.
+from .permissions import IsBoardOwnerOrReadOnly  # Importiert objektbezogene Board-Detail-Permission.
 from .serializers import (  # Importiert Serializer, die in Board-API-Endpunkten verwendet werden.
 	BoardDetailSerializer,  # Importiert Serializer fuer Board-Detailantworten.
 	BoardListSerializer,  # Importiert Serializer fuer Listen-/Create-Zusammenfassungen.
@@ -14,16 +14,10 @@ from .serializers import (  # Importiert Serializer, die in Board-API-Endpunkten
 	EmailCheckQuerySerializer,  # Importiert Serializer fuer email-check-Query-Validierung.
 	UserSummarySerializer,  # Importiert verschachtelten User-Serializer fuer email-check-Erfolg.
 )
+from ..models import Board  # Importiert das Board-Modell fuer Board-Endpunkte.
 
 
 User = get_user_model()  # Ermittelt das konfigurierte Custom-User-Modell.
-
-
-class IsBoardOwnerOrReadOnly(permissions.BasePermission):  # Objektbezogene Permission fuer den Board-Detailendpunkt.
-	def has_object_permission(self, request, view, obj):  # Prueft den Zugriff auf ein bestimmtes Board-Objekt.
-		if request.method in permissions.SAFE_METHODS or request.method == "PATCH":  # Erlaubt Lesen und Patch fuer Owner/Member.
-			return obj.owner_id == request.user.id or obj.members.filter(id=request.user.id).exists()  # Gewaehrt Zugriff bei Owner oder Member.
-		return obj.owner_id == request.user.id  # Beschraenkt Delete auf den Owner.
 
 
 class BoardListCreateView(generics.ListCreateAPIView):  # Endpunkt fuer Board-Liste und Board-Erstellung.

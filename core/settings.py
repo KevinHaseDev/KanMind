@@ -42,9 +42,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
-    'auth.apps.AuthConfig',
-    'board',
-    'task',
+    'auth_app.apps.AuthConfig',
+    'board_app.apps.BoardConfig',
+    'task_app.apps.TaskConfig',
 ]
 
 # Use custom user model from local auth app

@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model  # Importiert Hilfsfunktion fuer den Zugriff auf das aktive User-Modell.
 from rest_framework import serializers  # Importiert DRF-Serializerklassen und Validierungswerkzeuge.
 
-from .models import Comment, Task  # Importiert Task- und Comment-Modelle fuer diese Serializer.
+from ..models import Comment, Task  # Importiert Task- und Comment-Modelle fuer diese Serializer.
 
 
 User = get_user_model()  # Ermittelt das aktuell konfigurierte Custom-User-Modell.

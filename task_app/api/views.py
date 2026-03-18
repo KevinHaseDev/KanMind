@@ -4,9 +4,15 @@ from rest_framework.exceptions import PermissionDenied  # Importiert Exception f
 from rest_framework.response import Response  # Importiert den DRF-Response-Wrapper.
 from rest_framework.views import APIView  # Importiert die Basisklasse fuer benutzerdefinierte API-Endpunkte.
 
-from board.models import Board  # Importiert das Board-Modell fuer Existenz- und Mitgliedschaftspruefungen.
-from .models import Comment, Task  # Importiert Task- und Comment-Modelle fuer die Endpunkte.
+from board_app.models import Board  # Importiert das Board-Modell fuer Existenz- und Mitgliedschaftspruefungen.
+from .permissions import (  # Importiert wiederverwendbare Permissions fuer Task- und Comment-Endpunkte.
+	IsCommentAuthor,
+	IsTaskBoardMember,
+	IsTaskBoardMemberForCreate,
+	IsTaskCreatorOrBoardOwnerCanDelete,
+)
 from .serializers import CommentListSerializer, CommentSerializer, TaskSerializer, TaskUpdateResponseSerializer  # Importiert Serializer fuer Task-/Comment-Endpunkte.
+from ..models import Comment, Task  # Importiert Task- und Comment-Modelle fuer die Endpunkte.
 
 
 def user_can_access_board(user, board):  # Hilfsfunktion zur Pruefung, ob ein Benutzer im Board-Kontext zugreifen darf.
@@ -45,7 +51,7 @@ class TaskReviewingListView(generics.ListAPIView):  # Endpunkt fuer Tasks, die v
 
 class TaskCreateView(generics.CreateAPIView):  # Endpunkt zum Erstellen eines Tasks.
 	serializer_class = TaskSerializer  # Nutzt Task-Serializer fuer Ein- und Ausgabe.
-	permission_classes = [permissions.IsAuthenticated]  # Erfordert authentifizierte Benutzer.
+	permission_classes = [permissions.IsAuthenticated, IsTaskBoardMemberForCreate]  # Erfordert Authentifizierung und Board-Zugehoerigkeit fuer Task-Erstellung.
 
 	def create(self, request, *args, **kwargs):  # Ueberschreibt create fuer einen benutzerdefinierten board-not-found-Status.
 		board_id = request.data.get("board")  # Liest die Board-ID aus dem Request-Body.
@@ -62,17 +68,12 @@ class TaskCreateView(generics.CreateAPIView):  # Endpunkt zum Erstellen eines Ta
 
 
 class TaskDetailView(APIView):  # Endpunkt fuer Patchen und Loeschen eines einzelnen Tasks.
-	permission_classes = [permissions.IsAuthenticated]  # Erfordert authentifizierte Benutzer.
+	permission_classes = [permissions.IsAuthenticated, IsTaskBoardMember, IsTaskCreatorOrBoardOwnerCanDelete]  # Erzwingt objektbezogene Zugriffs- und Delete-Regeln.
 
 	def get_object(self, task_id):  # Hilfsfunktion, um einen Task mit optimierten Relationen zu laden.
 		return Task.objects.select_related("board", "reviewer").prefetch_related("assignies").filter(id=task_id).annotate(  # Baut optimiertes Queryset fuer einen Task.
 			comments_count=Count("comments", distinct=True)  # Annotiert den Task mit Kommentaranzahl.
 		).first()  # Gibt den ersten Treffer oder None zurueck.
-
-	def _check_board_access(self, user, task):  # Hilfsfunktion zur Sicherstellung der Board-Zugehoerigkeit.
-		board = task.board  # Liest die Board-Relation des Tasks.
-		if board and not user_can_access_board(user, board):  # Validiert Owner-/Member-Zugriff.
-			raise PermissionDenied("You must be a board owner or member to access this task.")  # Wirft 403 bei fehlendem Zugriff.
 
 	def patch(self, request, task_id):  # Behandelt partielle Updates eines Tasks.
 		task = self.get_object(task_id)  # Laedt den Task per ID.
@@ -82,7 +83,7 @@ class TaskDetailView(APIView):  # Endpunkt fuer Patchen und Loeschen eines einze
 		if "board" in request.data:  # Blockiert Board-Neuzuweisung ueber den Patch-Endpunkt.
 			return Response({"board": ["Changing the board of a task is not allowed."]}, status=status.HTTP_400_BAD_REQUEST)  # Gibt 400 fuer unerlaubtes Board-Feld zurueck.
 
-		self._check_board_access(request.user, task)  # Stellt sicher, dass der Benutzer den Task im Board-Kontext bearbeiten darf.
+		self.check_object_permissions(request, task)  # Prueft objektbezogene Task-Permissions.
 		serializer = TaskSerializer(task, data=request.data, partial=True)  # Erstellt Serializer fuer partielle Update-Validierung.
 		serializer.is_valid(raise_exception=True)  # Validiert die Request-Payload.
 		updated_task = serializer.save()  # Speichert die aktualisierte Task-Instanz.
@@ -98,32 +99,23 @@ class TaskDetailView(APIView):  # Endpunkt fuer Patchen und Loeschen eines einze
 		task = self.get_object(task_id)  # Laedt den Task per ID.
 		if task is None:  # Behandelt unbekannte Task-ID.
 			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 fuer fehlenden Task zurueck.
-
-		board_owner_id = task.board.owner_id if task.board else None  # Liest die Board-Owner-ID, falls der Task ein Board hat.
-		if request.user.id not in {task.created_by_id, board_owner_id}:  # Erlaubt nur Task-Ersteller oder Board-Owner.
-			raise PermissionDenied("Only the task creator or board owner can delete this task.")  # Wirft 403 bei fehlender Berechtigung.
+		self.check_object_permissions(request, task)  # Prueft objektbezogene Task-Permissions.
 
 		task.delete()  # Loescht die Task-Zeile dauerhaft aus der Datenbank.
 		return Response(status=status.HTTP_204_NO_CONTENT)  # Gibt eine leere Erfolgsantwort zurueck.
 
 
 class TaskCommentsListCreateView(APIView):  # Endpunkt zum Listen und Erstellen von Kommentaren unter einem Task.
-	permission_classes = [permissions.IsAuthenticated]  # Erfordert authentifizierte Benutzer.
+	permission_classes = [permissions.IsAuthenticated, IsTaskBoardMember]  # Erfordert Authentifizierung und Board-Zugehoerigkeit.
 
 	def get_task(self, task_id):  # Hilfsfunktion zum Laden eines Tasks mit Board-Relation.
 		return Task.objects.select_related("board").filter(id=task_id).first()  # Gibt Task per ID oder None zurueck.
-
-	def _check_board_access(self, user, task):  # Hilfsfunktion zur Erzwingung der Board-Mitgliedschaft bei Kommentaren.
-		board = task.board  # Liest die Board-Relation aus dem Task.
-		if board and not user_can_access_board(user, board):  # Prueft Owner-/Member-Zugriff.
-			raise PermissionDenied("You must be a board owner or member to access comments of this task.")  # Wirft 403 bei fehlendem Zugriff.
 
 	def get(self, request, task_id):  # Behandelt Anfragen fuer Kommentarlisten.
 		task = self.get_task(task_id)  # Laedt den Task per ID.
 		if task is None:  # Behandelt unbekannte Task-ID.
 			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 fuer fehlenden Task zurueck.
-
-		self._check_board_access(request.user, task)  # Stellt sicher, dass der Benutzer Kommentare dieses Tasks lesen darf.
+		self.check_object_permissions(request, task)  # Prueft objektbezogene Comment-Listen-Permissions.
 		comments = Comment.objects.filter(task=task).select_related("author").order_by("created_at")  # Laedt Kommentare chronologisch sortiert mit Author-Relation.
 		return Response(CommentListSerializer(comments, many=True).data, status=status.HTTP_200_OK)  # Gibt die serialisierte Kommentarliste zurueck.
 
@@ -131,8 +123,7 @@ class TaskCommentsListCreateView(APIView):  # Endpunkt zum Listen und Erstellen 
 		task = self.get_task(task_id)  # Laedt den Task per ID.
 		if task is None:  # Behandelt unbekannte Task-ID.
 			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 fuer fehlenden Task zurueck.
-
-		self._check_board_access(request.user, task)  # Stellt sicher, dass der Benutzer diesen Task kommentieren darf.
+		self.check_object_permissions(request, task)  # Prueft objektbezogene Comment-Create-Permissions.
 		serializer = CommentSerializer(data=request.data)  # Baut den Serializer fuer Eingabevalidierung auf.
 		serializer.is_valid(raise_exception=True)  # Validiert die Kommentar-Payload.
 		comment = serializer.save(task=task, author=request.user)  # Speichert den Kommentar mit Task und authentifiziertem Author.
@@ -140,15 +131,13 @@ class TaskCommentsListCreateView(APIView):  # Endpunkt zum Listen und Erstellen 
 
 
 class TaskCommentDeleteView(APIView):  # Endpunkt zum Loeschen eines bestimmten Kommentars.
-	permission_classes = [permissions.IsAuthenticated]  # Erfordert authentifizierte Benutzer.
+	permission_classes = [permissions.IsAuthenticated, IsCommentAuthor]  # Erfordert Authentifizierung und Author-Rechte.
 
 	def delete(self, request, task_id, comment_id):  # Behandelt Anfragen zum Loeschen von Kommentaren.
 		comment = Comment.objects.select_related("task", "task__board", "author").filter(id=comment_id, task_id=task_id).first()  # Laedt Kommentar im Kontext des Tasks.
 		if comment is None:  # Behandelt unbekannten Kommentar oder falsche Task-Kommentar-Kombination.
 			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 fuer fehlende Kommentar/Task-Kombination zurueck.
-
-		if comment.author_id != request.user.id:  # Erlaubt Loeschen nur fuer den Kommentar-Author.
-			raise PermissionDenied("Only the comment author can delete this comment.")  # Wirft 403 fuer Nicht-Authoren.
+		self.check_object_permissions(request, comment)  # Prueft objektbezogene Comment-Delete-Permissions.
 
 		comment.delete()  # Loescht die Kommentarzeile dauerhaft.
 		return Response(status=status.HTTP_204_NO_CONTENT)  # Gibt eine leere Erfolgsantwort zurueck.
