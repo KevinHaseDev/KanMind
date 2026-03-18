@@ -40,15 +40,16 @@ class TaskSerializer(serializers.ModelSerializer):  # Haupt-Serializer fuer Erst
             "due_date",  # Gibt das formatierte Faelligkeitsdatum aus.
             "comments_count",  # Gibt die Anzahl verknuepfter Kommentare aus.
         ]
+        read_only_fields = ["id", "comments_count"]
 
     def get_assignee(self, obj):  # Berechnet das Assignee-Objekt fuer API-Antworten.
         request = self.context.get("request")  # Liest das Request-Objekt aus dem Serializer-Kontext, falls vorhanden.
         if request and request.user and request.user.is_authenticated:  # Prueft, ob ein authentifizierter aktueller Benutzer vorhanden ist.
-            user = obj.assignies.filter(id=request.user.id).first()  # Bevorzugt den aktuellen Benutzer bei nutzerbezogenen Endpunkten.
+            user = obj.assignees.filter(id=request.user.id).first()  # Bevorzugt den aktuellen Benutzer bei nutzerbezogenen Endpunkten.
             if user:  # Behandelt den Fall, dass der aktuelle Benutzer zugewiesen ist.
                 return UserSummarySerializer(user).data  # Gibt die serialisierte User-Zusammenfassung zurueck.
 
-        user = obj.assignies.order_by("id").first()  # Faellt fuer allgemeine Endpunkte auf den ersten zugewiesenen Benutzer zurueck.
+        user = obj.assignees.order_by("id").first()  # Faellt fuer allgemeine Endpunkte auf den ersten zugewiesenen Benutzer zurueck.
         if not user:  # Behandelt Tasks ohne Assignees.
             return None  # Gibt null zurueck, wenn kein Assignee existiert.
         return UserSummarySerializer(user).data  # Gibt die serialisierten Assignee-Daten zurueck.
@@ -107,7 +108,7 @@ class TaskSerializer(serializers.ModelSerializer):  # Haupt-Serializer fuer Erst
         task = Task.objects.create(**validated_data)  # Erstellt die Task-Zeile in der Datenbank.
 
         if assignee_id is not None:  # Setzt Assignee-Relation nur, wenn sie angegeben ist.
-            task.assignies.set([assignee_id])  # Ersetzt die Assignee-Menge durch genau eine User-ID.
+            task.assignees.set([assignee_id])  # Ersetzt die Assignee-Menge durch genau eine User-ID.
 
         return task  # Gibt die erstellte Task-Instanz zurueck.
 
@@ -125,9 +126,9 @@ class TaskSerializer(serializers.ModelSerializer):  # Haupt-Serializer fuer Erst
 
         if assignee_id is not serializers.empty:  # Aktualisiert Assignee nur, wenn das Feld vorhanden ist.
             if assignee_id is None:  # Behandelt explizites Entfernen des Assignees.
-                instance.assignies.clear()  # Entfernt alle zugewiesenen Benutzer.
+                instance.assignees.clear()  # Entfernt alle zugewiesenen Benutzer.
             else:  # Behandelt das Ersetzen des Assignees.
-                instance.assignies.set([assignee_id])  # Setzt genau eine Assignee-Relation.
+                instance.assignees.set([assignee_id])  # Setzt genau eine Assignee-Relation.
 
         return instance  # Gibt die aktualisierte Task-Instanz zurueck.
 
@@ -171,7 +172,7 @@ class TaskUpdateResponseSerializer(serializers.ModelSerializer):  # Serializer f
         ]
 
     def get_assignee(self, obj):  # Berechnet das Assignee-Objekt fuer die Update-Antwort.
-        user = obj.assignies.order_by("id").first()  # Liest den ersten zugewiesenen Benutzer fuer die Ausgabe.
+        user = obj.assignees.order_by("id").first()  # Liest den ersten zugewiesenen Benutzer fuer die Ausgabe.
         if not user:  # Behandelt den Fall ohne Assignee.
             return None  # Gibt null fuer Assignee zurueck.
         return UserSummarySerializer(user).data  # Gibt die serialisierte User-Zusammenfassung zurueck.

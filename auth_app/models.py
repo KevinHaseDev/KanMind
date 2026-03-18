@@ -19,3 +19,4 @@ class CustomUser(AbstractUser):                             # Definiert das proj
     class Meta:                                             # Definiert Metadaten fuer dieses Modell.
         verbose_name = "custom user"                        # Setzt die einzelne Anzeigenbezeichnung im Admin.
         verbose_name_plural = "custom users"                # Setzt die pluralisierte Anzeigenbezeichnung im Admin.
+        ordering = ["email"]                                # Standard-Ordering nach E-Mail.

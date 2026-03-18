@@ -1,10 +1,8 @@
-from django.urls import path  # Importiert URL-Pfad-Helfer fuer Routendefinitionen.
+from django.urls import path
+from .views import BoardViewSet, EmailCheckView
 
-from .views import BoardDetailView, BoardListCreateView, EmailCheckView  # Importiert Board-API-Views fuer die Routen.
-
-
-urlpatterns = [  # Definiert URL-Patterns der Board-App.
-    path("boards/", BoardListCreateView.as_view(), name="board-list-create"),  # Ordnet den Endpunkt fuer Board-Liste/Erstellung zu.
-    path("boards/<int:board_id>/", BoardDetailView.as_view(), name="board-detail"),  # Ordnet den Board-Detailendpunkt zu.
-    path("email-check/", EmailCheckView.as_view(), name="email-check"),  # Ordnet den email-check-Endpunkt zu.
+urlpatterns = [
+    path("boards/", BoardViewSet.as_view({"get": "list", "post": "create"}), name="board-list-create",),
+    path("boards/<int:board_id>/", BoardViewSet.as_view({"get": "retrieve", "patch": "partial_update", "put": "update", "delete": "destroy"}), name="board-detail",),
+    path("boards/email-check/", EmailCheckView.as_view(), name="board-email-check"),
 ]

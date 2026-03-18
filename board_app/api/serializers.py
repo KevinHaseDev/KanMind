@@ -64,7 +64,7 @@ class BoardTaskSerializer(serializers.ModelSerializer):  # Serializer fuer die v
         ]
 
     def get_assignee(self, obj):  # Berechnet die erste Assignee-Zusammenfassung fuer die Task-Ausgabe.
-        user = obj.assignies.order_by("id").first()  # Liest den ersten zugewiesenen User nach ID-Sortierung.
+        user = obj.assignees.order_by("id").first()  # Liest den ersten zugewiesenen User nach ID-Sortierung.
         if not user:  # Behandelt den Fall ohne Assignee.
             return None  # Gibt null fuer Assignee zurueck.
         return UserSummarySerializer(user).data  # Gibt die serialisierte Assignee-Zusammenfassung zurueck.

@@ -8,4 +8,10 @@ class Board(models.Model):
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='boards')
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='owned_boards', on_delete=models.CASCADE)
 
-# auth.User ist nur ein lückenfüller für meinen richtigen User.
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = "board"
+        verbose_name_plural = "boards"
+        ordering = ["title"]
