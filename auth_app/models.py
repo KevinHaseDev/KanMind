@@ -1,5 +1,6 @@
-from django.db import models                                # Importiert Djangos Basis-Klassen fuer Modelle.
 from django.contrib.auth.models import AbstractUser         # Importiert Djangos erweiterbare Basis fuer Benutzer.
+from django.db import models                                # Importiert Djangos Basis-Klassen fuer Modelle.
+
 from .managers import CustomUserManager                     # Importiert den Custom-Manager fuer E-Mail-basierte User-Erstellung.
 
 

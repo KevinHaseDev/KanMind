@@ -50,10 +50,13 @@ class LoginSerializer(serializers.ModelSerializer):         # Serializer für Lo
         email = attrs.get("email")                          # Liest die E-Mail aus der Anfrage.
         password = attrs.get("password")                    # Liest das Passwort aus der Anfrage.
 
-        user = authenticate(                                # Versucht die Django-Authentifizierung mit den gelieferten Daten.
-            request=self.context.get("request"),            # Gibt das Request-Objekt für Backend/Context weiter.
-            email=email,                                    # Nutzt E-Mail als Login-Identifikator.
-            password=password,                              # Nutzt das Klartextpasswort zur Backend-Prüfung.
+        # Pass the identifier using the name expected by auth backends.
+        # ModelBackend expects the username argument but will resolve it
+        # to the model's USERNAME_FIELD (email) when applicable.
+        user = authenticate(
+            request=self.context.get("request"),
+            username=email,
+            password=password,
         )
 
         if user is None:                                    # Behandelt ungültige Login-Daten.

@@ -1,13 +1,22 @@
-from django.contrib.auth import get_user_model  # Importiert Hilfsfunktion zum Ermitteln des aktiven User-Modells.
-from django.db.models import Count, Q  # Importiert Aggregation und OR-Query-Helferobjekte.
-from rest_framework.authentication import TokenAuthentication  # Importiert Token-Authentifizierung fuer geschuetzte Endpunkte.
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Q
+
 from rest_framework import generics, permissions, status, viewsets
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
-from rest_framework.response import Response  # Importiert den DRF-Response-Wrapper.
-from rest_framework.views import APIView  # Importiert die Basisklasse fuer benutzerdefinierte API-Endpunkte.
-from .permissions import IsBoardOwnerOrReadOnly  # Importiert objektbezogene Board-Detail-Permission.
-from .serializers import BoardDetailSerializer, BoardListSerializer, BoardSerializer, BoardUpdateResponseSerializer, EmailCheckQuerySerializer, UserSummarySerializer  
-from ..models import Board  # Importiert das Board-Modell fuer Board-Endpunkte.
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from ..models import Board
+from .permissions import IsBoardOwnerOrReadOnly
+from .serializers import (
+	BoardDetailSerializer,
+	BoardListSerializer,
+	BoardSerializer,
+	BoardUpdateResponseSerializer,
+	EmailCheckQuerySerializer,
+	UserSummarySerializer,
+)
 
 
 User = get_user_model()  # Ermittelt das konfigurierte Custom-User-Modell.

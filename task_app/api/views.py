@@ -1,19 +1,25 @@
-from django.db.models import Count, Q
 from django.http import Http404
-from rest_framework import viewsets, permissions, status
+from django.db.models import Count, Q
+
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, NotFound
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
 
 from board_app.models import Board
+from ..models import Comment, Task
 from .permissions import (
     IsCommentAuthor,
     IsTaskBoardMember,
     IsTaskBoardMemberForCreate,
     IsTaskCreatorOrBoardOwnerCanDelete,
 )
-from .serializers import CommentListSerializer, CommentSerializer, TaskSerializer, TaskUpdateResponseSerializer
-from ..models import Comment, Task
+from .serializers import (
+    CommentListSerializer,
+    CommentSerializer,
+    TaskSerializer,
+    TaskUpdateResponseSerializer,
+)
 
 
 def user_can_access_board(user, board):

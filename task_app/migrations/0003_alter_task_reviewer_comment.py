@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('task', '0002_task_board'),
+        ('task_app', '0002_task_board'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -25,7 +25,8 @@ class Migration(migrations.Migration):
                 ('content', models.TextField()),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('author', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='task_comments', to=settings.AUTH_USER_MODEL)),
-                ('task', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='comments', to='task.task')),
+                ('task', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='comments', to='task_app.task')),
+                
             ],
         ),
     ]

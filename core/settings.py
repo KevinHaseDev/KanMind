@@ -48,7 +48,7 @@ INSTALLED_APPS = [
 ]
 
 # Use custom user model from local auth app
-AUTH_USER_MODEL = 'accounts.CustomUser'
+AUTH_USER_MODEL = 'auth_app.CustomUser'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
