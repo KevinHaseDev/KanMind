@@ -1,39 +1,39 @@
-from rest_framework import status  							# Importiert standardisierte HTTP-Statuskonstanten.
+from rest_framework import generics, status  					# Importiert DRF-Generic-Views und standardisierte HTTP-Statuskonstanten.
 from rest_framework.response import Response  				# Importiert das Response-Objekt von DRF.
-from rest_framework.views import APIView  					# Importiert die Basisklasse fuer API-Endpunkte.
 from rest_framework.authtoken.models import Token  			# Importiert das Token-Modell fuer Auth-Tokens.
 
 from .permissions import PublicAuthPermission  				# Importiert oeffentliche Permission fuer Auth-Endpunkte.
 from .serializers import LoginSerializer, RegistrationSerializer  # Importiert Serializer fuer Login und Registrierung.
 
 
-class RegistrationView(APIView):  							# Behandelt den Endpunkt fuer Benutzerregistrierung.
-	permission_classes = [PublicAuthPermission]  			# Erlaubt oeffentlichen Zugriff ohne Authentifizierung.
-	authentication_classes = []  							# Deaktiviert Authentifizierungspflicht fuer diesen Endpunkt.
+class RegistrationView(generics.CreateAPIView):
+	permission_classes = [PublicAuthPermission]  # Erlaubt oeffentlichen Zugriff ohne Authentifizierung.
+	authentication_classes = []  # Deaktiviert Authentifizierungspflicht fuer diesen Endpunkt.
+	serializer_class = RegistrationSerializer  # Definiert den Serializer fuer CreateAPIView.
 
-	def post(self, request):  								# Behandelt POST-Anfragen fuer die Registrierung.
-		serializer = RegistrationSerializer(data=request.data)  # Validiert die eingehenden Registrierungsdaten.
-		if not serializer.is_valid():  						# Prueft, ob die Validierung fehlgeschlagen ist.
-			return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # Gibt Validierungsfehler mit Status 400 zurueck.
+	def create(self, request, *args, **kwargs):
+		serializer = self.get_serializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		user = serializer.save()
+		token, _ = Token.objects.get_or_create(user=user)
 
-		user = serializer.save()  							# Erstellt den Benutzer in der Datenbank.
-		token, _ = Token.objects.get_or_create(user=user)  	# Erstellt oder holt ein Token fuer den neuen Benutzer.
-
-		response_data = {  									# Baut die vom Frontend erwartete Antwortstruktur auf.
-			"token": token.key,  							# Enthaelt den Authentifizierungs-Token.
-			"fullname": user.fullname,  					# Enthaelt den vollstaendigen Namen des Benutzers.
-			"email": user.email,  							# Enthaelt die E-Mail des Benutzers.
-			"user_id": user.id,  							# Enthaelt die numerische Benutzer-ID.
+		response_data = {
+			"token": token.key,
+			"fullname": user.fullname,
+			"email": user.email,
+			"user_id": user.id,
 		}
-		return Response(response_data, status=status.HTTP_201_CREATED)  # Gibt eine erfolgreiche Erstellungsantwort zurueck.
+		headers = self.get_success_headers(serializer.data)
+		return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
 
 
-class LoginView(APIView):  									# Behandelt den Login-Endpunkt.
+class LoginView(generics.GenericAPIView):  						# Behandelt den Login-Endpunkt.
 	permission_classes = [PublicAuthPermission]  			# Erlaubt oeffentlichen Zugriff ohne Authentifizierung.
 	authentication_classes = []  							# Deaktiviert Authentifizierungspflicht fuer diesen Endpunkt.
+	serializer_class = LoginSerializer                          # Definiert den Serializer fuer den Generic-View.
 
 	def post(self, request):  								# Behandelt POST-Anfragen fuer den Login.
-		serializer = LoginSerializer(data=request.data, context={"request": request})  # Validiert Login-Daten mit dem Serializer.
+		serializer = self.get_serializer(data=request.data, context={"request": request})  # Validiert Login-Daten mit dem Serializer.
 		if not serializer.is_valid():  						# Prueft, ob die Zugangsdaten gueltig sind.
 			return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # Gibt Login-Fehler mit Status 400 zurueck.
 

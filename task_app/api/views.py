@@ -1,143 +1,130 @@
-from django.db.models import Count  # Importiert Aggregatfunktion fuer Kommentarzaehler.
-from rest_framework import generics, permissions, status  # Importiert DRF-Generic-Views, Permission-Klassen und Statuscodes.
-from rest_framework.exceptions import PermissionDenied  # Importiert Exception fuer verbotenen Zugriff.
-from rest_framework.response import Response  # Importiert den DRF-Response-Wrapper.
-from rest_framework.views import APIView  # Importiert die Basisklasse fuer benutzerdefinierte API-Endpunkte.
+from django.db.models import Count   									# Importiert Aggregatfunktion fuer Kommentarzaehler.
+from django.http import Http404										# Importiert 404-Exception fuer explizite Not-Found-Faelle.
+from rest_framework import generics, permissions, status  					# Importiert DRF-Generic-Views, Permission-Klassen und Statuscodes.
+from rest_framework.exceptions import PermissionDenied  					# Importiert Exception fuer verbotenen Zugriff.
+from rest_framework.exceptions import NotFound   						# Importiert Exception fuer nicht gefunden.
+from rest_framework.response import Response  							# Importiert den DRF-Response-Wrapper.
 
-from board_app.models import Board  # Importiert das Board-Modell fuer Existenz- und Mitgliedschaftspruefungen.
-from .permissions import (  # Importiert wiederverwendbare Permissions fuer Task- und Comment-Endpunkte.
+from board_app.models import Board  									# Importiert das Board-Modell fuer Existenz- und Mitgliedschaftspruefungen.
+from .permissions import (  											# Importiert wiederverwendbare Permissions fuer Task- und Comment-Endpunkte.
 	IsCommentAuthor,
 	IsTaskBoardMember,
 	IsTaskBoardMemberForCreate,
 	IsTaskCreatorOrBoardOwnerCanDelete,
 )
 from .serializers import CommentListSerializer, CommentSerializer, TaskSerializer, TaskUpdateResponseSerializer  # Importiert Serializer fuer Task-/Comment-Endpunkte.
-from ..models import Comment, Task  # Importiert Task- und Comment-Modelle fuer die Endpunkte.
+from ..models import Comment, Task  									# Importiert Task- und Comment-Modelle fuer die Endpunkte.
 
 
-def user_can_access_board(user, board):  # Hilfsfunktion zur Pruefung, ob ein Benutzer im Board-Kontext zugreifen darf.
+def user_can_access_board(user, board):  								# Hilfsfunktion zur Pruefung, ob ein Benutzer im Board-Kontext zugreifen darf.
+	if user.is_superuser:  												# Superuser darf immer auf Board-bezogene Task-Aktionen zugreifen.
+		return True
 	return board.owner_id == user.id or board.members.filter(id=user.id).exists()  # Gibt true zurueck bei Board-Owner oder Board-Member.
 
 
-class TaskAssignedToMeListView(generics.ListAPIView):  # Endpunkt fuer Tasks, die dem aktuellen Benutzer zugewiesen sind.
-	serializer_class = TaskSerializer  # Nutzt Task-Serializer fuer das Antwortformat.
-	permission_classes = [permissions.IsAuthenticated]  # Erfordert authentifizierte Benutzer.
+class TaskAssignedToMeListView(generics.ListAPIView):  					# Endpunkt fuer Tasks, die dem aktuellen Benutzer zugewiesen sind.
+	serializer_class = TaskSerializer  										# Nutzt Task-Serializer fuer das Antwortformat.
+	permission_classes = [permissions.IsAuthenticated]  					# Erfordert authentifizierte Benutzer.
 
-	def get_queryset(self):  # Baut das Queryset fuer den Assigned-to-me-Endpunkt.
-		user = self.request.user  # Liest den aktuell authentifizierten Benutzer.
-		return (  # Gibt optimiertes Queryset mit benoetigten Relationen zurueck.
-			Task.objects.filter(assignies=user)  # Filtert Tasks, bei denen der aktuelle Benutzer zugewiesen ist.
-			.select_related("board", "reviewer")  # Joint Board und Reviewer zur Reduzierung zusaetzlicher Queries.
-			.prefetch_related("assignies")  # Prefetched die Assignee-Relation fuer die Serialisierung.
-			.annotate(comments_count=Count("comments", distinct=True))  # Annotiert jeden Task mit Kommentaranzahl.
-			.distinct()  # Entfernt Duplikate durch Joins.
+	def get_queryset(self):  											# Baut das Queryset fuer den Assigned-to-me-Endpunkt.
+		user = self.request.user  										# Liest den aktuell authentifizierten Benutzer.
+		return (  															# Gibt optimiertes Queryset mit benoetigten Relationen zurueck.
+			Task.objects.filter(assignies=user)  							# Filtert Tasks, bei denen der aktuelle Benutzer zugewiesen ist.
+			.select_related("board", "reviewer")  						# Joint Board und Reviewer zur Reduzierung zusaetzlicher Queries.
+			.prefetch_related("assignies")  							# Prefetched die Assignee-Relation fuer die Serialisierung.
+			.annotate(comments_count=Count("comments", distinct=True))  	# Annotiert jeden Task mit Kommentaranzahl.
+			.distinct()  											# Entfernt Duplikate durch Joins.
 		)
 
 
-class TaskReviewingListView(generics.ListAPIView):  # Endpunkt fuer Tasks, die vom aktuellen Benutzer reviewed werden.
-	serializer_class = TaskSerializer  # Nutzt Task-Serializer fuer das Antwortformat.
-	permission_classes = [permissions.IsAuthenticated]  # Erfordert authentifizierte Benutzer.
+class TaskReviewingListView(generics.ListAPIView):  						# Endpunkt fuer Tasks, die vom aktuellen Benutzer reviewed werden.
+	serializer_class = TaskSerializer  										# Nutzt Task-Serializer fuer das Antwortformat.
+	permission_classes = [permissions.IsAuthenticated]  					# Erfordert authentifizierte Benutzer.
 
-	def get_queryset(self):  # Baut das Queryset fuer den Reviewing-Endpunkt.
-		user = self.request.user  # Liest den aktuell authentifizierten Benutzer.
-		return (  # Gibt optimiertes Queryset mit benoetigten Relationen zurueck.
-			Task.objects.filter(reviewer=user)  # Filtert Tasks, bei denen der aktuelle Benutzer Reviewer ist.
-			.select_related("board", "reviewer")  # Joint Board und Reviewer zur Reduzierung zusaetzlicher Queries.
-			.prefetch_related("assignies")  # Prefetched die Assignee-Relation fuer die Serialisierung.
-			.annotate(comments_count=Count("comments", distinct=True))  # Annotiert jeden Task mit Kommentaranzahl.
-			.distinct()  # Entfernt Duplikate durch Joins.
+	def get_queryset(self):  											# Baut das Queryset fuer den Reviewing-Endpunkt.
+		user = self.request.user  										# Liest den aktuell authentifizierten Benutzer.
+		return (  															# Gibt optimiertes Queryset mit benoetigten Relationen zurueck.
+			Task.objects.filter(reviewer=user)  							# Filtert Tasks, bei denen der aktuelle Benutzer Reviewer ist.
+			.select_related("board", "reviewer")  						# Joint Board und Reviewer zur Reduzierung zusaetzlicher Queries.
+			.prefetch_related("assignies")  							# Prefetched die Assignee-Relation fuer die Serialisierung.
+			.annotate(comments_count=Count("comments", distinct=True))  	# Annotiert jeden Task mit Kommentaranzahl.
+			.distinct()  											# Entfernt Duplikate durch Joins.
 		)
 
 
-class TaskCreateView(generics.CreateAPIView):  # Endpunkt zum Erstellen eines Tasks.
-	serializer_class = TaskSerializer  # Nutzt Task-Serializer fuer Ein- und Ausgabe.
+class TaskCreateView(generics.CreateAPIView):  							# Endpunkt zum Erstellen eines Tasks.
+	serializer_class = TaskSerializer  										# Nutzt Task-Serializer fuer Ein- und Ausgabe.
 	permission_classes = [permissions.IsAuthenticated, IsTaskBoardMemberForCreate]  # Erfordert Authentifizierung und Board-Zugehoerigkeit fuer Task-Erstellung.
+	# Board-Existenz und Permissions werden in perform_create behandelt; keine explizite create()-Override notwendig.
 
-	def create(self, request, *args, **kwargs):  # Ueberschreibt create fuer einen benutzerdefinierten board-not-found-Status.
-		board_id = request.data.get("board")  # Liest die Board-ID aus dem Request-Body.
-		if board_id is not None and not Board.objects.filter(id=board_id).exists():  # Prueft, ob das angegebene Board existiert.
-			return Response({"detail": "Board not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 zurueck, wenn das Board nicht existiert.
+	def perform_create(self, serializer):
+		board = serializer.validated_data.get("board")
+		# Falls der Client eine Board-ID gesendet hat, aber das Board nicht validiert wurde -> 404
+		initial_board = serializer.initial_data.get("board") if hasattr(serializer, "initial_data") else None
+		if initial_board is not None and board is None:
+			raise NotFound("Board not found.")
 
-		return super().create(request, *args, **kwargs)  # Faellt auf den normalen DRF-Create-Ablauf zurueck.
+		if board and not user_can_access_board(self.request.user, board):
+			raise PermissionDenied("You must be a board owner or member to create tasks for this board.")
 
-	def perform_create(self, serializer):  # Fuegt Permission-Pruefungen vor dem Speichern hinzu.
-		board = serializer.validated_data.get("board")  # Liest das validierte Board-Objekt.
-		if board and not user_can_access_board(self.request.user, board):  # Blockiert Benutzer ausserhalb des Board-Kontexts.
-			raise PermissionDenied("You must be a board owner or member to create tasks for this board.")  # Gibt 403 zurueck, wenn Board-Zugriff fehlt.
-		serializer.save(created_by=self.request.user)  # Speichert den Task und setzt den Ersteller automatisch.
+		serializer.save(created_by=self.request.user)
 
 
-class TaskDetailView(APIView):  # Endpunkt fuer Patchen und Loeschen eines einzelnen Tasks.
+class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):  		# Endpunkt fuer Patchen und Loeschen eines einzelnen Tasks.
+	queryset = Task.objects.select_related("board", "reviewer").prefetch_related("assignies").annotate(comments_count=Count("comments", distinct=True))  # Liefert optimiertes Queryset inkl. Kommentaranzahl.
+	serializer_class = TaskSerializer  									# Nutzt TaskSerializer fuer eingehende Patch-Validierung.
 	permission_classes = [permissions.IsAuthenticated, IsTaskBoardMember, IsTaskCreatorOrBoardOwnerCanDelete]  # Erzwingt objektbezogene Zugriffs- und Delete-Regeln.
+	lookup_url_kwarg = "task_id"  										# Liest die Task-ID aus dem URL-Parameter task_id.
+	http_method_names = ["patch", "delete"]  						# Erlaubt nur PATCH und DELETE fuer diesen Endpunkt.
 
-	def get_object(self, task_id):  # Hilfsfunktion, um einen Task mit optimierten Relationen zu laden.
-		return Task.objects.select_related("board", "reviewer").prefetch_related("assignies").filter(id=task_id).annotate(  # Baut optimiertes Queryset fuer einen Task.
-			comments_count=Count("comments", distinct=True)  # Annotiert den Task mit Kommentaranzahl.
-		).first()  # Gibt den ersten Treffer oder None zurueck.
-
-	def patch(self, request, task_id):  # Behandelt partielle Updates eines Tasks.
-		task = self.get_object(task_id)  # Laedt den Task per ID.
-		if task is None:  # Behandelt unbekannte Task-ID.
-			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 fuer fehlenden Task zurueck.
-
-		if "board" in request.data:  # Blockiert Board-Neuzuweisung ueber den Patch-Endpunkt.
+	def partial_update(self, request, *args, **kwargs):  					# Behandelt partielle Updates mit benutzerdefinierter Antwortstruktur.
+		if "board" in request.data:  									# Blockiert Board-Neuzuweisung ueber den Patch-Endpunkt.
 			return Response({"board": ["Changing the board of a task is not allowed."]}, status=status.HTTP_400_BAD_REQUEST)  # Gibt 400 fuer unerlaubtes Board-Feld zurueck.
 
-		self.check_object_permissions(request, task)  # Prueft objektbezogene Task-Permissions.
-		serializer = TaskSerializer(task, data=request.data, partial=True)  # Erstellt Serializer fuer partielle Update-Validierung.
-		serializer.is_valid(raise_exception=True)  # Validiert die Request-Payload.
-		updated_task = serializer.save()  # Speichert die aktualisierte Task-Instanz.
-		updated_task = (  # Laedt den Task mit annotierten Feldern fuer die Antwort neu.
-			Task.objects.select_related("board", "reviewer")  # Joint Board- und Reviewer-Relation.
-			.prefetch_related("assignies")  # Prefetched die Assignee-Relation.
-			.annotate(comments_count=Count("comments", distinct=True))  # Berechnet die Kommentaranzahl erneut per Annotation.
-			.get(id=updated_task.id)  # Holt die aktualisierte Zeile per ID.
-		)
-		return Response(TaskUpdateResponseSerializer(updated_task).data, status=status.HTTP_200_OK)  # Gibt die Update-Antwort mit geforderter Feldstruktur zurueck.
+		instance = self.get_object()  									# Laedt Task inkl. automatischer Objekt-Permission-Pruefung.
+		serializer = self.get_serializer(instance, data=request.data, partial=True)  # Baut Serializer fuer partielle Update-Validierung.
+		serializer.is_valid(raise_exception=True)  						# Validiert die Request-Payload.
+		self.perform_update(serializer)  								# Speichert die aktualisierte Task-Instanz.
 
-	def delete(self, request, task_id):  # Behandelt das Loeschen eines Tasks.
-		task = self.get_object(task_id)  # Laedt den Task per ID.
-		if task is None:  # Behandelt unbekannte Task-ID.
-			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 fuer fehlenden Task zurueck.
-		self.check_object_permissions(request, task)  # Prueft objektbezogene Task-Permissions.
-
-		task.delete()  # Loescht die Task-Zeile dauerhaft aus der Datenbank.
-		return Response(status=status.HTTP_204_NO_CONTENT)  # Gibt eine leere Erfolgsantwort zurueck.
+		updated_task = self.get_queryset().get(id=instance.id)  				# Laedt aktualisierten Task mit annotierten Feldern neu.
+		return Response(TaskUpdateResponseSerializer(updated_task).data, status=status.HTTP_200_OK)  # Gibt die geforderte Update-Antwortstruktur zurueck.
 
 
-class TaskCommentsListCreateView(APIView):  # Endpunkt zum Listen und Erstellen von Kommentaren unter einem Task.
-	permission_classes = [permissions.IsAuthenticated, IsTaskBoardMember]  # Erfordert Authentifizierung und Board-Zugehoerigkeit.
+class TaskCommentsListCreateView(generics.ListCreateAPIView):  			# Endpunkt zum Listen und Erstellen von Kommentaren unter einem Task.
+	permission_classes = [permissions.IsAuthenticated, IsTaskBoardMember]  	# Erfordert Authentifizierung und Board-Zugehoerigkeit.
 
-	def get_task(self, task_id):  # Hilfsfunktion zum Laden eines Tasks mit Board-Relation.
-		return Task.objects.select_related("board").filter(id=task_id).first()  # Gibt Task per ID oder None zurueck.
+	def get_serializer_class(self):  									# Waehlt den Serializer anhand der HTTP-Methode.
+		if self.request.method == "GET":  								# Nutzt den Listen-Serializer fuer GET-Antworten.
+			return CommentListSerializer
+		return CommentSerializer  										# Nutzt den Create-Serializer fuer POST-Validierung.
 
-	def get(self, request, task_id):  # Behandelt Anfragen fuer Kommentarlisten.
-		task = self.get_task(task_id)  # Laedt den Task per ID.
-		if task is None:  # Behandelt unbekannte Task-ID.
-			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 fuer fehlenden Task zurueck.
-		self.check_object_permissions(request, task)  # Prueft objektbezogene Comment-Listen-Permissions.
-		comments = Comment.objects.filter(task=task).select_related("author").order_by("created_at")  # Laedt Kommentare chronologisch sortiert mit Author-Relation.
-		return Response(CommentListSerializer(comments, many=True).data, status=status.HTTP_200_OK)  # Gibt die serialisierte Kommentarliste zurueck.
+	def get_task(self):  											# Laedt den Task fuer den URL-Parameter task_id.
+		task = Task.objects.select_related("board").filter(id=self.kwargs["task_id"]).first()  # Holt Task inkl. Board-Relation.
+		if task is None:  											# Behandelt unbekannte Task-ID.
+			raise Http404
+		self.check_object_permissions(self.request, task)  					# Prueft objektbezogene Board-Mitglieds-Permissions.
+		return task
 
-	def post(self, request, task_id):  # Behandelt das Erstellen eines neuen Kommentars.
-		task = self.get_task(task_id)  # Laedt den Task per ID.
-		if task is None:  # Behandelt unbekannte Task-ID.
-			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 fuer fehlenden Task zurueck.
-		self.check_object_permissions(request, task)  # Prueft objektbezogene Comment-Create-Permissions.
-		serializer = CommentSerializer(data=request.data)  # Baut den Serializer fuer Eingabevalidierung auf.
-		serializer.is_valid(raise_exception=True)  # Validiert die Kommentar-Payload.
-		comment = serializer.save(task=task, author=request.user)  # Speichert den Kommentar mit Task und authentifiziertem Author.
-		return Response(CommentListSerializer(comment).data, status=status.HTTP_201_CREATED)  # Gibt den erstellten Kommentar im Listenformat zurueck.
+	def get_queryset(self):  										# Baut das Queryset fuer Kommentarlisten.
+		task = self.get_task()  										# Laedt und prueft den Parent-Task.
+		return Comment.objects.filter(task=task).select_related("author").order_by("created_at")  # Gibt Kommentare chronologisch sortiert zurueck.
+
+	def perform_create(self, serializer):
+		# Setzt Parent-Task und Author beim Erstellen (wird von Generic create() aufgerufen).
+		task = self.get_task()
+		serializer.save(task=task, author=self.request.user)
+
+	def create(self, request, *args, **kwargs):
+		serializer = self.get_serializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		self.perform_create(serializer)
+		comment = serializer.instance
+		return Response(CommentListSerializer(comment).data, status=status.HTTP_201_CREATED)
 
 
-class TaskCommentDeleteView(APIView):  # Endpunkt zum Loeschen eines bestimmten Kommentars.
-	permission_classes = [permissions.IsAuthenticated, IsCommentAuthor]  # Erfordert Authentifizierung und Author-Rechte.
+class TaskCommentDeleteView(generics.DestroyAPIView):  					# Endpunkt zum Loeschen eines bestimmten Kommentars.
+	permission_classes = [permissions.IsAuthenticated, IsCommentAuthor]  	# Erfordert Authentifizierung und Author-Rechte.
+	lookup_url_kwarg = "comment_id"  									# Liest die Kommentar-ID aus dem URL-Parameter comment_id.
 
-	def delete(self, request, task_id, comment_id):  # Behandelt Anfragen zum Loeschen von Kommentaren.
-		comment = Comment.objects.select_related("task", "task__board", "author").filter(id=comment_id, task_id=task_id).first()  # Laedt Kommentar im Kontext des Tasks.
-		if comment is None:  # Behandelt unbekannten Kommentar oder falsche Task-Kommentar-Kombination.
-			return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)  # Gibt 404 fuer fehlende Kommentar/Task-Kombination zurueck.
-		self.check_object_permissions(request, comment)  # Prueft objektbezogene Comment-Delete-Permissions.
-
-		comment.delete()  # Loescht die Kommentarzeile dauerhaft.
-		return Response(status=status.HTTP_204_NO_CONTENT)  # Gibt eine leere Erfolgsantwort zurueck.
+	def get_queryset(self):  										# Schränkt loeschbare Kommentare auf den uebergebenen Task ein.
+		return Comment.objects.select_related("task", "task__board", "author").filter(task_id=self.kwargs["task_id"])  # Laedt Kommentare nur im Kontext des angefragten Tasks.

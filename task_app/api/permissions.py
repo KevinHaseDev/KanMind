@@ -3,6 +3,8 @@ from rest_framework.permissions import BasePermission			# Importiert die Basiskl
 
 
 def is_board_owner_or_member(user, board):						# Hilfsfunktion, die prueft, ob ein User Owner oder Member eines Boards ist.
+	if user.is_superuser:										# Superuser darf immer auf Boards zugreifen.
+		return True
 	return board.owner_id == user.id or board.members.filter(id=user.id).exists()	# True fuer Owner oder vorhandenes Mitglied.
 
 
@@ -42,6 +44,8 @@ class IsTaskCreatorOrBoardOwnerCanDelete(BasePermission):		# Permission, die loe
 	message = "Only the task creator or board owner can delete this task."  # Fehlermeldung bei Verweigerung.
 
 	def has_object_permission(self, request, view, obj):		# Prueft objektbezogene Delete-Rechte.
+		if request.user.is_superuser:							# Superuser darf Tasks immer loeschen.
+			return True
 		if request.method != "DELETE":							# Nur fuer DELETE-Anfragen relevant.
 			return True											# Andere Methoden nicht betroffen.
 		board_owner_id = obj.board.owner_id if obj.board else None	# Bestimme Board-Owner-ID falls vorhanden.
@@ -54,6 +58,8 @@ class IsCommentAuthor(BasePermission):							# Permission, die das Loeschen von 
 	message = "Only the comment author can delete this comment."  # Fehlermeldung bei Verweigerung.
 
 	def has_object_permission(self, request, view, obj):		# Prueft objektbezogene Rechte fuer Kommentare.
+		if request.user.is_superuser:							# Superuser darf Kommentare immer loeschen.
+			return True
 		if request.method != "DELETE":							# Nur fuer DELETE-Anfragen relevant.
 			return True											# Andere Methoden sind nicht betroffen.
 		return obj.author_id == request.user.id					# True nur, wenn der Request-User der Autor des Kommentars ist.
