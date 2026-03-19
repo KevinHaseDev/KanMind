@@ -63,6 +63,14 @@ MIDDLEWARE = [
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+]
+
 ROOT_URLCONF = 'core.urls'
 
 REST_FRAMEWORK = {

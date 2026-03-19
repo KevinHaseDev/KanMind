@@ -6,6 +6,16 @@ from .permissions import PublicAuthPermission  				# Importiert oeffentliche Per
 from .serializers import LoginSerializer, RegistrationSerializer  # Importiert Serializer fuer Login und Registrierung.
 
 
+def get_safe_fullname(user):
+	fullname = " ".join((user.fullname or "").strip().split())
+	if not fullname:
+		local_part = (user.email or "User").split("@")[0] or "User"
+		return f"{local_part} User"
+	if len(fullname.split(" ")) < 2:
+		return f"{fullname} User"
+	return fullname
+
+
 class RegistrationView(generics.CreateAPIView):
 	permission_classes = [PublicAuthPermission]  # Erlaubt oeffentlichen Zugriff ohne Authentifizierung.
 	authentication_classes = []  # Deaktiviert Authentifizierungspflicht fuer diesen Endpunkt.
@@ -19,7 +29,7 @@ class RegistrationView(generics.CreateAPIView):
 
 		response_data = {
 			"token": token.key,
-			"fullname": user.fullname,
+			"fullname": get_safe_fullname(user),
 			"email": user.email,
 			"user_id": user.id,
 		}
@@ -27,12 +37,12 @@ class RegistrationView(generics.CreateAPIView):
 		return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
 
 
-class LoginView(generics.GenericAPIView):  						# Behandelt den Login-Endpunkt.
+class LoginView(generics.CreateAPIView):  						# Behandelt den Login-Endpunkt.
 	permission_classes = [PublicAuthPermission]  			# Erlaubt oeffentlichen Zugriff ohne Authentifizierung.
 	authentication_classes = []  							# Deaktiviert Authentifizierungspflicht fuer diesen Endpunkt.
-	serializer_class = LoginSerializer                          # Definiert den Serializer fuer den Generic-View.
+	serializer_class = LoginSerializer                          # Definiert den Serializer fuer den Create-View.
 
-	def post(self, request):  								# Behandelt POST-Anfragen fuer den Login.
+	def create(self, request, *args, **kwargs):  							# Behandelt POST-Anfragen fuer den Login.
 		serializer = self.get_serializer(data=request.data, context={"request": request})  # Validiert Login-Daten mit dem Serializer.
 		if not serializer.is_valid():  						# Prueft, ob die Zugangsdaten gueltig sind.
 			return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # Gibt Login-Fehler mit Status 400 zurueck.
@@ -42,7 +52,7 @@ class LoginView(generics.GenericAPIView):  						# Behandelt den Login-Endpunkt.
 		token, _ = Token.objects.get_or_create(user=user)  	# Erstellt oder holt ein Token fuer den authentifizierten Benutzer.
 		response_data = {  									# Baut die vom Frontend erwartete Antwortstruktur auf.
 			"token": token.key,  							# Enthaelt den Authentifizierungs-Token.
-			"fullname": user.fullname,  					# Enthaelt den vollstaendigen Namen des Benutzers.
+			"fullname": get_safe_fullname(user),  					# Enthaelt den vollstaendigen Namen des Benutzers.
 			"email": user.email,  							# Enthaelt die E-Mail des Benutzers.
 			"user_id": user.id,  							# Enthaelt die numerische Benutzer-ID.
 		}

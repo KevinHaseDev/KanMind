@@ -21,6 +21,12 @@ class RegistrationSerializer(serializers.ModelSerializer):  # Serializer für Re
             raise serializers.ValidationError("Email is already registered.")  # Gibt einen Validierungsfehler bei Duplikaten zurück.
         return value                                        # Akzeptiert eine eindeutige E-Mail.
 
+    def validate_fullname(self, value):
+        normalized = " ".join((value or "").strip().split())
+        if len(normalized.split(" ")) < 2:
+            raise serializers.ValidationError("Fullname must contain at least first and last name.")
+        return normalized
+
     def validate(self, attrs):                              # Feldübergreifende Validierung für die Passwortbestätigung.
         if attrs["password"] != attrs["repeated_password"]: # Vergleicht beide eingegebenen Passwörter.
             raise serializers.ValidationError({"repeated_password": "Passwords do not match."})  # Gibt Fehler bei Nicht-Übereinstimmung aus.

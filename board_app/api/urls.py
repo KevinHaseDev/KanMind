@@ -1,8 +1,9 @@
 from django.urls import path
-from .views import BoardViewSet, EmailCheckView
+from .views import BoardDetailView, BoardListCreateView, EmailCheckView
 
 urlpatterns = [
-    path("boards/", BoardViewSet.as_view({"get": "list", "post": "create"}), name="board-list-create",),
-    path("boards/<int:board_id>/", BoardViewSet.as_view({"get": "retrieve", "patch": "partial_update", "put": "update", "delete": "destroy"}), name="board-detail",),
-    path("boards/email-check/", EmailCheckView.as_view(), name="board-email-check"),
+    path('boards/', BoardListCreateView.as_view(), name="board-list-create",),
+    path('boards/<int:board_id>/', BoardDetailView.as_view(), name="board-detail",),
+    path('email-check/', EmailCheckView.as_view(), name="email-check"),
+    
 ]
