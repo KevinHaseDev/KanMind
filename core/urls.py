@@ -1,25 +1,10 @@
-"""
-URL configuration for core project.
+"""Definiert die zentrale URL-Konfiguration des Projekts und bindet alle App-Routen ein."""  # Beschreibt den Zweck dieses URL-Moduls.
+from django.contrib import admin  # Importiert die Admin-Site von Django.
+from django.urls import include, path  # Importiert Funktionen fuer URL-Pfade und das Einbinden weiterer URL-Dateien.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-from django.contrib import admin
-from django.urls import include, path
-
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/', include('auth_app.api.urls')),
-    path('api/', include('board_app.api.urls')),
-    path('api/', include('task_app.api.urls')),
-]
+urlpatterns = [  # Definiert alle zentralen URL-Eintraege des Projekts.
+    path('admin/', admin.site.urls),  # Bindet den Django-Admin unter /admin/ ein.
+    path('api/', include('auth_app.api.urls')),  # Bindet alle Auth-API-Endpunkte unter /api/ ein.
+    path('api/', include('board_app.api.urls')),  # Bindet alle Board-API-Endpunkte unter /api/ ein.
+    path('api/', include('task_app.api.urls')),  # Bindet alle Task-API-Endpunkte unter /api/ ein.
+]  # Beendet die URL-Liste.

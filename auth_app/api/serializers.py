@@ -1,72 +1,71 @@
-from django.contrib.auth import get_user_model              # Importiert Hilfsfunktion, um das aktive User-Modell aufzulösen.
-from django.contrib.auth import authenticate                # Importiert Djangos Authentifizierungsfunktion.
-from rest_framework import serializers                      # Importiert die Basis-Serializerklassen von DRF.
+from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate
+from rest_framework import serializers
+
+User = get_user_model()
 
 
-User = get_user_model()                                     # Ermittelt das konfigurierte Custom-User-Modell.
+class RegistrationSerializer(serializers.ModelSerializer):
+    repeated_password = serializers.CharField(write_only=True, min_length=8)
 
-
-class RegistrationSerializer(serializers.ModelSerializer):  # Serializer für Registrierungsdaten und Validierung.
-    repeated_password = serializers.CharField(write_only=True, min_length=8)  # Fügt ein zweites Passwortfeld zur Bestätigung hinzu.
-
-    class Meta:                                             # Definiert Model-Bindung und Feldkonfiguration.
-        model = User                                        # Verknüpft den Serializer mit dem User-Modell.
-        fields = ["fullname", "email", "password", "repeated_password"]  # Stellt die Registrierungsfelder bereit.
-        extra_kwargs = {                                    # Konfiguriert das Verhalten für sensible Felder.
-            "password": {"write_only": True, "min_length": 8},  # Versteckt das Passwort in Antworten und erzwingt Mindestlaenge.
+    class Meta:
+        model = User
+        fields = ["fullname", "email", "password", "repeated_password"]
+        extra_kwargs = {
+            "password": {"write_only": True, "min_length": 8},
         }
 
-    def validate_email(self, value):                        # Prüft, ob die E-Mail noch verfügbar ist.
-        if User.objects.filter(email=value).exists():       # Sucht nach einem bereits existierenden Account.
-            raise serializers.ValidationError("Email is already registered.")  # Gibt einen Validierungsfehler bei Duplikaten zurück.
-        return value                                        # Akzeptiert eine eindeutige E-Mail.
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email is already registered.")
+        return value
 
     def validate_fullname(self, value):
         normalized = " ".join((value or "").strip().split())
         if len(normalized.split(" ")) < 2:
-            raise serializers.ValidationError("Fullname must contain at least first and last name.")
+            raise serializers.ValidationError(
+                "Fullname must contain at least first and last name.")
         return normalized
 
-    def validate(self, attrs):                              # Feldübergreifende Validierung für die Passwortbestätigung.
-        if attrs["password"] != attrs["repeated_password"]: # Vergleicht beide eingegebenen Passwörter.
-            raise serializers.ValidationError({"repeated_password": "Passwords do not match."})  # Gibt Fehler bei Nicht-Übereinstimmung aus.
-        return attrs                                        # Gibt validierte Eingabedaten zurück.
+    def validate(self, attrs):
+        if attrs["password"] != attrs["repeated_password"]:
+            raise serializers.ValidationError(
+                {"repeated_password": "Passwords do not match."})
+        return attrs
 
-    def create(self, validated_data):                       # Erstellt einen User mit sicher gehashtem Passwort.
-        validated_data.pop("repeated_password")             # Entfernt das Hilfsfeld, das nicht im Modell gespeichert wird.
-        user = User.objects.create_user(                    # Ruft create_user des Managers auf, um Passwort zu hashen und User zu speichern.
-            email=validated_data["email"],                  # Setzt die Login-E-Mail des Users.
-            password=validated_data["password"],            # Übergibt das Rohpasswort (wird im Manager gehasht).
-            fullname=validated_data["fullname"],            # Setzt das Vollnamen-Feld.
+    def create(self, validated_data):
+        validated_data.pop("repeated_password")
+        user = User.objects.create_user(
+            email=validated_data["email"],
+            password=validated_data["password"],
+            fullname=validated_data["fullname"],
         )
-        return user                                         # Gibt die erstellte User-Instanz zurück.
+        return user
 
 
-class LoginSerializer(serializers.ModelSerializer):         # Serializer für Login-Payload und Credential-Validierung.
-    email = serializers.EmailField()                        # Nimmt eine E-Mail entgegen und validiert das Format.
+class LoginSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField()
 
-    class Meta:                                             # Definiert Model-Bindung und Feldkonfiguration.
-        model = User                                        # Verknüpft den Serializer mit dem User-Modell.
-        fields = ["email", "password"]                      # Stellt die Login-Felder bereit.
-        extra_kwargs = {                                    # Konfiguriert den Umgang mit dem Passwortfeld.
-            "password": {"write_only": True},               # Versteckt das Passwort in API-Antworten.
+    class Meta:
+        model = User
+        fields = ["email", "password"]
+        extra_kwargs = {
+            "password": {"write_only": True},
         }
 
-    def validate(self, attrs):                              # Authentifiziert die übergebenen Zugangsdaten.
-        email = attrs.get("email")                          # Liest die E-Mail aus der Anfrage.
-        password = attrs.get("password")                    # Liest das Passwort aus der Anfrage.
+    def validate(self, attrs):
+        email = attrs.get("email")
+        password = attrs.get("password")
 
-        # Pass the identifier using the name expected by auth backends.
-        # ModelBackend expects the username argument but will resolve it
-        # to the model's USERNAME_FIELD (email) when applicable.
         user = authenticate(
             request=self.context.get("request"),
             username=email,
             password=password,
         )
 
-        if user is None:                                    # Behandelt ungültige Login-Daten.
-            raise serializers.ValidationError({"detail": "Invalid credentials."})  # Gibt einen Login-Fehler zurück.
+        if user is None:
+            raise serializers.ValidationError(
+                {"detail": "Invalid credentials."})
 
-        attrs["user"] = user                                # Speichert den authentifizierten User fuer die View-Schicht.
-        return attrs                                        # Gibt validierte Daten inklusive User zurück.
+        attrs["user"] = user
+        return attrs

@@ -2,8 +2,7 @@ from django.urls import path
 from .views import BoardDetailView, BoardListCreateView, EmailCheckView
 
 urlpatterns = [
-    path('boards/', BoardListCreateView.as_view(), name="board-list-create",),
-    path('boards/<int:board_id>/', BoardDetailView.as_view(), name="board-detail",),
-    path('email-check/', EmailCheckView.as_view(), name="email-check"),
-    
+    path('', BoardListCreateView.as_view(), name="boards_list_create"),
+    path('<int:board_id>/', BoardDetailView.as_view(), name="boards_detail"),
+    path('email-check/', EmailCheckView.as_view(), name="boards_email_check"),
 ]

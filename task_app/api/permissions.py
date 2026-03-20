@@ -9,8 +9,6 @@ def is_board_owner_or_member(user, board):
 
 
 class IsTaskBoardMemberForCreate(BasePermission):
-    """Ensure task creation is allowed only for board owner/member when board is provided."""
-
     message = "You must be a board owner or member to create tasks for this board."
 
     def has_permission(self, request, view):
@@ -26,8 +24,6 @@ class IsTaskBoardMemberForCreate(BasePermission):
 
 
 class IsTaskBoardMember(BasePermission):
-    """Allow access to task-scoped resources only for board owner/member."""
-
     message = "You must be a board owner or member to access this task."
 
     def has_object_permission(self, request, view, obj):
@@ -39,8 +35,6 @@ class IsTaskBoardMember(BasePermission):
 
 
 class IsTaskCreatorOrBoardOwnerCanDelete(BasePermission):
-    """Allow deleting a task only for task creator or board owner."""
-
     message = "Only the task creator or board owner can delete this task."
 
     def has_object_permission(self, request, view, obj):
@@ -53,8 +47,6 @@ class IsTaskCreatorOrBoardOwnerCanDelete(BasePermission):
 
 
 class IsCommentAuthor(BasePermission):
-    """Allow deleting comments only for their author."""
-
     message = "Only the comment author can delete this comment."
 
     def has_object_permission(self, request, view, obj):

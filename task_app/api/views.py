@@ -20,10 +20,12 @@ from .serializers import (
     TaskUpdateResponseSerializer,
 )
 
+
 def user_can_access_board(user, board):
     if user.is_superuser:
         return True
     return board.owner_id == user.id or board.members.filter(id=user.id).exists()
+
 
 class TaskBaseQuerysetMixin:
     def _base_task_queryset(self):
@@ -32,6 +34,7 @@ class TaskBaseQuerysetMixin:
             .prefetch_related("assignees")
             .annotate(comments_count=Count("comments", distinct=True))
         )
+
 
 class TaskListCreateView(TaskBaseQuerysetMixin, generics.ListCreateAPIView):
     serializer_class = TaskSerializer
@@ -63,6 +66,7 @@ class TaskListCreateView(TaskBaseQuerysetMixin, generics.ListCreateAPIView):
 
         serializer.save(created_by=self.request.user)
 
+
 class TaskAssignedToMeListView(TaskBaseQuerysetMixin, generics.ListAPIView):
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -70,12 +74,14 @@ class TaskAssignedToMeListView(TaskBaseQuerysetMixin, generics.ListAPIView):
     def get_queryset(self):
         return self._base_task_queryset().filter(assignees=self.request.user).distinct()
 
+
 class TaskReviewingListView(TaskBaseQuerysetMixin, generics.ListAPIView):
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return self._base_task_queryset().filter(reviewer=self.request.user).distinct()
+
 
 class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TaskSerializer
@@ -106,7 +112,6 @@ class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIVie
 
         instance = self.get_object()
 
-        # Fast path for board column moves: only status is patched via move button.
         if set(request.data.keys()) == {"status"}:
             raw_status = str(request.data.get("status", "")).strip().lower()
             status_aliases = {
@@ -137,6 +142,7 @@ class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIVie
         response["Access-Control-Allow-Methods"] = "GET, PATCH, DELETE, OPTIONS"
         return response
 
+
 class TaskCommentsListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated, IsTaskBoardMember]
     serializer_class = CommentListSerializer
@@ -164,6 +170,7 @@ class TaskCommentsListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(task=task, author=request.user)
         return Response(CommentListSerializer(serializer.instance).data, status=status.HTTP_201_CREATED)
+
 
 class TaskCommentDeleteView(generics.DestroyAPIView):
     permission_classes = [permissions.IsAuthenticated, IsCommentAuthor]
