@@ -12,7 +12,10 @@ class RegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = ["fullname", "email", "password", "repeated_password"]
         extra_kwargs = {
-            "password": {"write_only": True, "min_length": 8},
+            "password": {
+                "write_only": True, 
+                "min_length": 8
+                },
         }
 
     def validate_email(self, value):
