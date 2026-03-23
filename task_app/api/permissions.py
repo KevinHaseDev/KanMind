@@ -8,10 +8,16 @@ def is_board_owner_or_member(user, board):
     return board.owner_id == user.id or board.members.filter(id=user.id).exists()
 
 
+def is_authenticated_user(user):
+    return bool(user and user.is_authenticated)
+
+
 class IsTaskBoardMemberForCreate(BasePermission):
     message = "You must be a board owner or member to create tasks for this board."
 
     def has_permission(self, request, view):
+        if not is_authenticated_user(request.user):
+            return False
         if request.method != "POST":
             return True
         board_id = request.data.get("board")
@@ -26,6 +32,9 @@ class IsTaskBoardMemberForCreate(BasePermission):
 class IsTaskBoardMember(BasePermission):
     message = "You must be a board owner or member to access this task."
 
+    def has_permission(self, request, view):
+        return is_authenticated_user(request.user)
+
     def has_object_permission(self, request, view, obj):
         task = getattr(obj, "task", obj)
         board = getattr(task, "board", None)
@@ -36,6 +45,9 @@ class IsTaskBoardMember(BasePermission):
 
 class IsTaskCreatorOrBoardOwnerCanDelete(BasePermission):
     message = "Only the task creator or board owner can delete this task."
+
+    def has_permission(self, request, view):
+        return is_authenticated_user(request.user)
 
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
@@ -48,6 +60,9 @@ class IsTaskCreatorOrBoardOwnerCanDelete(BasePermission):
 
 class IsCommentAuthor(BasePermission):
     message = "Only the comment author can delete this comment."
+
+    def has_permission(self, request, view):
+        return is_authenticated_user(request.user)
 
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:

@@ -1,7 +1,7 @@
 from django.http import Http404
 from django.db.models import Count, Q
 
-from rest_framework import generics, permissions, status
+from rest_framework import generics, status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 
@@ -38,7 +38,7 @@ class TaskBaseQuerysetMixin:
 
 class TaskListCreateView(TaskBaseQuerysetMixin, generics.ListCreateAPIView):
     serializer_class = TaskSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTaskBoardMemberForCreate]
 
     def get_queryset(self):
         user = self.request.user
@@ -52,8 +52,8 @@ class TaskListCreateView(TaskBaseQuerysetMixin, generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == "POST":
-            return [permissions.IsAuthenticated(), IsTaskBoardMemberForCreate()]
-        return [permissions.IsAuthenticated()]
+            return [IsTaskBoardMemberForCreate()]
+        return super().get_permissions()
 
     def perform_create(self, serializer):
         board = serializer.validated_data.get("board")
@@ -69,7 +69,6 @@ class TaskListCreateView(TaskBaseQuerysetMixin, generics.ListCreateAPIView):
 
 class TaskAssignedToMeListView(TaskBaseQuerysetMixin, generics.ListAPIView):
     serializer_class = TaskSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return self._base_task_queryset().filter(assignees=self.request.user).distinct()
@@ -77,7 +76,6 @@ class TaskAssignedToMeListView(TaskBaseQuerysetMixin, generics.ListAPIView):
 
 class TaskReviewingListView(TaskBaseQuerysetMixin, generics.ListAPIView):
     serializer_class = TaskSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return self._base_task_queryset().filter(reviewer=self.request.user).distinct()
@@ -85,7 +83,7 @@ class TaskReviewingListView(TaskBaseQuerysetMixin, generics.ListAPIView):
 
 class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TaskSerializer
-    permission_classes = [permissions.IsAuthenticated, IsTaskBoardMember]
+    permission_classes = [IsTaskBoardMember]
     lookup_url_kwarg = "task_id"
     http_method_names = ["get", "patch", "delete", "head", "options"]
 
@@ -101,10 +99,8 @@ class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIVie
 
     def get_permissions(self):
         if self.request.method in ["PATCH", "DELETE"]:
-            return [permissions.IsAuthenticated(), IsTaskBoardMember(), IsTaskCreatorOrBoardOwnerCanDelete()]
-        if self.request.method == "GET":
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAuthenticated()]
+            return [IsTaskBoardMember(), IsTaskCreatorOrBoardOwnerCanDelete()]
+        return super().get_permissions()
 
     def partial_update(self, request, *args, **kwargs):
         if "board" in request.data:
@@ -144,7 +140,7 @@ class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIVie
 
 
 class TaskCommentsListCreateView(generics.ListCreateAPIView):
-    permission_classes = [permissions.IsAuthenticated, IsTaskBoardMember]
+    permission_classes = [IsTaskBoardMember]
     serializer_class = CommentListSerializer
 
     def _get_task(self):
@@ -173,7 +169,7 @@ class TaskCommentsListCreateView(generics.ListCreateAPIView):
 
 
 class TaskCommentDeleteView(generics.DestroyAPIView):
-    permission_classes = [permissions.IsAuthenticated, IsCommentAuthor]
+    permission_classes = [IsCommentAuthor]
     serializer_class = CommentListSerializer
     lookup_url_kwarg = "comment_id"
 

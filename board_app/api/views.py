@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
 
-from rest_framework import generics, permissions, status
+from rest_framework import generics, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
@@ -23,7 +23,6 @@ User = get_user_model()
 
 class BoardListCreateView(generics.ListCreateAPIView):
     serializer_class = BoardSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -76,7 +75,7 @@ class BoardDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Board.objects.select_related("owner").prefetch_related(
         "members", "tasks", "tasks__assignees", "tasks__reviewer")
     serializer_class = BoardSerializer
-    permission_classes = [permissions.IsAuthenticated, IsBoardOwnerOrReadOnly]
+    permission_classes = [IsBoardOwnerOrReadOnly]
     lookup_url_kwarg = "board_id"
     http_method_names = ["get", "patch", "delete", "head", "options"]
 
@@ -100,7 +99,6 @@ class BoardDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class EmailCheckView(generics.RetrieveAPIView):
-    permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [TokenAuthentication]
     serializer_class = UserSummarySerializer
 
