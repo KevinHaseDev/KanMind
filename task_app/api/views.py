@@ -1,13 +1,12 @@
 """Task API views for listing, modifying, and commenting on tasks."""
 
-from django.http import Http404
 from django.db.models import Count, Q
+from django.http import Http404
 
 from rest_framework import generics, status
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound,PermissionDenied,ValidationError
 from rest_framework.response import Response
 
-from board_app.models import Board
 from ..models import Comment, Task
 from .permissions import (
     IsCommentAuthor,
@@ -27,7 +26,9 @@ def user_can_access_board(user, board):
     """Return whether a user can access the given board."""
     if user.is_superuser:
         return True
-    return board.owner_id == user.id or board.members.filter(id=user.id).exists()
+    return board.owner_id == user.id or board.members.filter(
+        id=user.id
+        ).exists()
 
 
 class TaskBaseQuerysetMixin:
@@ -69,10 +70,28 @@ class TaskListCreateView(TaskBaseQuerysetMixin, generics.ListCreateAPIView):
             return [IsTaskBoardMemberForCreate()]
         return super().get_permissions()
 
-    def perform_create(self, serializer):
-        """Create task after validating board access constraints."""
+    def create(self, request, *args, **kwargs):
+        """Create task and convert unknown board references to 404."""
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as exc:
+            board_errors = exc.detail.get("board")
+            if board_errors and any(
+                "Invalid pk" in str(msg) for msg in board_errors
+                ):
+                raise NotFound(detail="Board not found")
+            raise
         board = self._get_requested_board(serializer)
         self._ensure_board_access(board)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
+
+    def perform_create(self, serializer):
+        """Persist task with current user as creator."""
         serializer.save(created_by=self.request.user)
 
     def _get_requested_board(self, serializer):
@@ -87,7 +106,7 @@ class TaskListCreateView(TaskBaseQuerysetMixin, generics.ListCreateAPIView):
         """Ensure current user can create tasks for the board."""
         if board and not user_can_access_board(self.request.user, board):
             raise PermissionDenied(
-                "You must be a board owner or member to create tasks for this board."
+        "You must be a board owner or member to create tasks for this board."
             )
 
 
@@ -98,7 +117,9 @@ class TaskAssignedToMeListView(TaskBaseQuerysetMixin, generics.ListAPIView):
 
     def get_queryset(self):
         """Return distinct tasks assigned to the current user."""
-        return self._base_task_queryset().filter(assignees=self.request.user).distinct()
+        return self._base_task_queryset().filter(
+            assignees=self.request.user
+            ).distinct()
 
 
 class TaskReviewingListView(TaskBaseQuerysetMixin, generics.ListAPIView):
@@ -108,10 +129,13 @@ class TaskReviewingListView(TaskBaseQuerysetMixin, generics.ListAPIView):
 
     def get_queryset(self):
         """Return distinct tasks reviewed by the current user."""
-        return self._base_task_queryset().filter(reviewer=self.request.user).distinct()
+        return self._base_task_queryset().filter(
+            reviewer=self.request.user
+            ).distinct()
 
 
-class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
+class TaskDetailView(TaskBaseQuerysetMixin, 
+                     generics.RetrieveUpdateDestroyAPIView):
     """Retrieve, update, and delete a single accessible task."""
 
     serializer_class = TaskSerializer
@@ -120,19 +144,8 @@ class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIVie
     http_method_names = ["get", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
-        """Return tasks visible to the current user."""
-        user = self.request.user
-        return (
-            self._base_task_queryset()
-            .filter(
-                Q(board__owner=user)
-                | Q(board__members=user)
-                | Q(created_by=user)
-                | Q(assignees=user)
-                | Q(reviewer=user)
-            )
-            .distinct()
-        )
+        """Return all tasks so object-level permissions can decide access."""
+        return self._base_task_queryset().distinct()
 
     def get_permissions(self):
         """Apply extra permission checks for write and delete operations."""
@@ -165,7 +178,11 @@ class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIVie
             raise ValidationError(
                 {
                     "status": [
-                        "Status must be one of: to-do, in-progress, review, done."
+                        "Status must be one of: "
+                        "to-do, "
+                        "in-progress, "
+                        "review, "
+                        "done."
                     ]
                 }
             )
@@ -185,7 +202,8 @@ class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIVie
 
     def _update_partial_fields(self, instance, request_data):
         """Apply a generic partial update and return API response."""
-        serializer = self.get_serializer(instance, data=request_data, partial=True)
+        serializer = self.get_serializer(
+            instance, data=request_data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return self._build_update_response(instance)
@@ -197,7 +215,9 @@ class TaskDetailView(TaskBaseQuerysetMixin, generics.RetrieveUpdateDestroyAPIVie
 
         instance = self.get_object()
         if set(request.data.keys()) == {"status"}:
-            return self._update_status_only(instance, request.data.get("status"))
+            return self._update_status_only(
+                instance, request.data.get("status")
+                )
         return self._update_partial_fields(instance, request.data)
 
     def options(self, request, *args, **kwargs):
@@ -244,7 +264,10 @@ class TaskCommentsListCreateView(generics.ListCreateAPIView):
         serializer = CommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(task=task, author=request.user)
-        return Response(CommentListSerializer(serializer.instance).data, status=status.HTTP_201_CREATED)
+        return Response(
+            CommentListSerializer(serializer.instance).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class TaskCommentDeleteView(generics.DestroyAPIView):

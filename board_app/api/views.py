@@ -57,7 +57,9 @@ class BoardListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         """Return annotated board list visible to current user."""
         user = self.request.user
-        queryset = Board.objects.filter(Q(owner=user) | Q(members=user)).distinct()
+        queryset = Board.objects.filter(
+            Q(owner=user) | Q(members=user)
+        ).distinct()
         return with_board_metrics(queryset)
 
     def perform_create(self, serializer):
@@ -131,7 +133,9 @@ class EmailCheckView(generics.RetrieveAPIView):
 
     def get_object(self):
         """Validate query parameter and return matching user."""
-        query_serializer = EmailCheckQuerySerializer(data=self.request.query_params)
+        query_serializer = EmailCheckQuerySerializer(
+            data=self.request.query_params
+            )
         if not query_serializer.is_valid():
             raise ValidationError(query_serializer.errors)
 

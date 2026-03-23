@@ -43,7 +43,11 @@ class RegistrationView(generics.CreateAPIView):
         user = serializer.save()
         response_data = self._build_auth_response(user)
         headers = self.get_success_headers(serializer.data)
-        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(
+            response_data, 
+            status=status.HTTP_201_CREATED, 
+            headers=headers
+            )
 
 
 class LoginView(generics.CreateAPIView):
@@ -65,9 +69,15 @@ class LoginView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         """Validate credentials and return token-based login response."""
-        serializer = self.get_serializer(data=request.data, context={"request": request})
+        serializer = self.get_serializer(
+            data=request.data, 
+            context={"request": request}
+            )
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                serializer.errors, 
+                status=status.HTTP_400_BAD_REQUEST
+                )
 
         user = serializer.validated_data["user"]
         response_data = self._build_login_response(user)

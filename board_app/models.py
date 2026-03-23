@@ -4,8 +4,15 @@ from django.db import models
 
 class Board(models.Model):
     title = models.CharField(max_length=255)
-    members = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='boards')
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='owned_boards', on_delete=models.CASCADE)
+    members = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, 
+        related_name='boards'
+        )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        related_name='owned_boards', 
+        on_delete=models.CASCADE
+        )
 
     def __str__(self):
         return self.title

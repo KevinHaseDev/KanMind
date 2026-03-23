@@ -90,7 +90,9 @@ class TaskSerializer(serializers.ModelSerializer):
     def validate_priority(self, value):
         """Validate task priority against allowed values."""
         if value not in self.ALLOWED_PRIORITIES:
-            raise serializers.ValidationError("Priority must be one of: low, medium, high.")
+            raise serializers.ValidationError(
+                "Priority must be one of: low, medium, high."
+                )
         return value
 
     def validate_assignee_id(self, value):
@@ -126,8 +128,18 @@ class TaskSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         """Validate membership rules for assignee and reviewer."""
         board, assignee_id, reviewer_id = self._member_validation_values(attrs)
-        self._validate_member_id(board, assignee_id, "assignee_id", self.ASSIGNEE_MEMBER_ERROR)
-        self._validate_member_id(board, reviewer_id, "reviewer_id", self.REVIEWER_MEMBER_ERROR)
+        self._validate_member_id(
+            board, 
+            assignee_id, 
+            "assignee_id", 
+            self.ASSIGNEE_MEMBER_ERROR
+            )
+        self._validate_member_id(
+            board, 
+            reviewer_id, 
+            "reviewer_id", 
+            self.REVIEWER_MEMBER_ERROR
+            )
         return attrs
 
     def create(self, validated_data):

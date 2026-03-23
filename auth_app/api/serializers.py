@@ -40,7 +40,9 @@ class RegistrationSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         """Ensure password confirmation matches password."""
         if attrs["password"] != attrs["repeated_password"]:
-            raise serializers.ValidationError({"repeated_password": "Passwords do not match."})
+            raise serializers.ValidationError(
+                {"repeated_password": "Passwords do not match."}
+                )
         return attrs
 
     def create(self, validated_data):
@@ -81,7 +83,9 @@ class LoginSerializer(serializers.ModelSerializer):
         user = self._authenticate_user(email, password)
 
         if user is None:
-            raise serializers.ValidationError({"detail": "Invalid credentials."})
+            raise serializers.ValidationError(
+                {"detail": "Invalid credentials."}
+            )
 
         attrs["user"] = user
         return attrs
