@@ -1,6 +1,7 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
+from rest_framework.permissions import AllowAny
 
 from .serializers import LoginSerializer, RegistrationSerializer
 
@@ -16,7 +17,7 @@ def get_safe_fullname(user):
 
 
 class RegistrationView(generics.CreateAPIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
     authentication_classes = []
     serializer_class = RegistrationSerializer
 
@@ -37,7 +38,7 @@ class RegistrationView(generics.CreateAPIView):
 
 
 class LoginView(generics.CreateAPIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
     authentication_classes = []
     serializer_class = LoginSerializer
 
